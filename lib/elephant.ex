@@ -1,10 +1,16 @@
 defmodule Elephant do
   @moduledoc """
   Elephant: A STOMP client.
+
+  Example:
+
+    {:ok, conn} = Elephant.connect({127,0,0,1}, 32770, "admin", "admin")
+    Elephant.subscribe(conn, "/test/me")
   """
 
   require Logger
   alias Elephant.Message
+  alias Elephant.Receiver
 
   @doc """
   Connect to server, returns socket.
@@ -48,36 +54,9 @@ defmodule Elephant do
     end
   end
 
-  def subscribe(conn, destination, opts) do
-    message =
-      %Message{
-        command: :subscribe,
-        headers:
-          [
-            {"destination", destination},
-            {"ack", "auto"},
-            {"id", "42"}
-          ] ++ opts
-      }
-      |> Message.format()
-
-    Logger.debug(message)
-
-    :gen_tcp.send(conn, message)
-
-    # TODO: once received, receive again until unsubscribe
-    # TODO: register message handler
-
-    {:ok, response} = :gen_tcp.recv(conn, 0)
-    Logger.debug(response)
-
-    response_message =
-      response
-      |> :erlang.iolist_to_binary()
-      |> Message.parse()
-
-    Logger.debug(inspect(response_message))
-
-    conn
+  def subscribe(conn, destination) do
+    {:ok, pid} = Receiver.start_link(conn)
+    Receiver.subscribe(pid, destination)
+    Receiver.listen(pid)
   end
 end

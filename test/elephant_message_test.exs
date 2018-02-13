@@ -38,6 +38,16 @@ defmodule ElephantMessageTest do
            }
   end
 
+  test "parses messages with LF after zero byte" do
+    message = "CONNECT\r\nkey:value\r\n\r\ntest" <> <<0>> <> "\n"
+
+    assert Message.parse(message) == %Message{
+             command: :connect,
+             headers: [{"key", "value"}],
+             body: "test"
+           }
+  end
+
   test "parses messages with multiple headers" do
     message = "CONNECT\r\nkey:value\r\nkey2:value2\r\n\r\ntest" <> <<0>>
 

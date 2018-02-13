@@ -25,6 +25,9 @@ defmodule Elephant.Message do
   def format(%Message{command: :connected, headers: headers, body: nil}),
     do: format("CONNECTED", headers)
 
+  def format(%Message{command: :subscribe, headers: headers, body: nil}),
+    do: format("SUBSCRIBE", headers)
+
   defp format(command, headers) when is_binary(command) do
     command <> @eol <> format_headers(headers) <> @eol <> @eol <> @ascii_null
   end
@@ -55,6 +58,14 @@ defmodule Elephant.Message do
     parse_headers(tail, [], %Message{command: :connected})
   end
 
+  def parse(<<"MESSAGE", @eol, tail::binary>>) do
+    parse_headers(tail, [], %Message{command: :message})
+  end
+
+  def parse(<<"MESSAGE", @lf, tail::binary>>) do
+    parse_headers(tail, [], %Message{command: :message})
+  end
+
   defp parse_headers(tail, headers, message) do
     [line, tail] = Regex.split(~r/\r?\n/, tail, parts: 2)
 
@@ -80,19 +91,15 @@ defmodule Elephant.Message do
   end
 
   defp parse_body(tail, message) do
-    tail_size = byte_size(tail)
+    body =
+      tail
+      |> :binary.bin_to_list()
+      |> Enum.take_while(&(&1 > 0))
+      |> to_string
 
-    # if tail size is < 3 there is no body
-    # TODO should still verify that the tail is valid
-    if tail_size < 3 do
-      message
-    else
-      body_size = tail_size - 1
-      <<body::binary-size(body_size), 0, _rest::binary>> = tail
-
-      # todo verify that _rest is empty or newline
-
-      %{message | body: body}
+    case String.length(body) do
+      0 -> message
+      _ -> %{message | body: body}
     end
   end
 end

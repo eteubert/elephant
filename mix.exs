@@ -7,7 +7,10 @@ defmodule Elephant.MixProject do
       version: "0.1.0",
       elixir: "~> 1.6",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+
+      # Docs
+      name: "Elephant"
     ]
   end
 
@@ -22,7 +25,8 @@ defmodule Elephant.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:ex_guard, "~> 1.1.1", only: :dev}
+      {:ex_guard, "~> 1.1.1", only: :dev},
+      {:ex_doc, "~> 0.16", only: :dev, runtime: false}
     ]
   end
 end

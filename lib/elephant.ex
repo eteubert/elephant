@@ -4,8 +4,8 @@ defmodule Elephant do
 
   Example:
 
-    {:ok, conn} = Elephant.connect({127,0,0,1}, 32770, "admin", "admin")
-    Elephant.subscribe(conn, "foo.bar")
+      {:ok, conn} = Elephant.connect({127,0,0,1}, 32770, "admin", "admin")
+      Elephant.subscribe(conn, "foo.bar")
   """
 
   require Logger
@@ -48,6 +48,9 @@ defmodule Elephant do
     end
   end
 
+  @doc """
+  Subscribe to a topic or queue.
+  """
   def subscribe(conn, destination) do
     {:ok, pid} = Receiver.start_link(conn)
     Receiver.subscribe(pid, destination)

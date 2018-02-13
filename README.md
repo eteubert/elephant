@@ -1,6 +1,6 @@
 # Elephant
 
-**TODO: Add description**
+An Elixir STOMP client.
 
 ## Installation
 

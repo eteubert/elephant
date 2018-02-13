@@ -63,8 +63,7 @@ defmodule ElephantMessageTest do
 
     assert Message.parse(message) == %Message{
              command: :connect,
-             headers: [],
-             body: ""
+             headers: []
            }
   end
 end

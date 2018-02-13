@@ -22,6 +22,9 @@ defmodule Elephant.Message do
   def format(%Message{command: :connect, headers: headers, body: nil}),
     do: format("CONNECT", headers)
 
+  def format(%Message{command: :connected, headers: headers, body: nil}),
+    do: format("CONNECTED", headers)
+
   defp format(command, headers) when is_binary(command) do
     command <> @eol <> format_headers(headers) <> @eol <> @eol <> @ascii_null
   end
@@ -42,6 +45,14 @@ defmodule Elephant.Message do
 
   def parse(<<"CONNECT", @lf, tail::binary>>) do
     parse_headers(tail, [], %Message{command: :connect})
+  end
+
+  def parse(<<"CONNECTED", @eol, tail::binary>>) do
+    parse_headers(tail, [], %Message{command: :connected})
+  end
+
+  def parse(<<"CONNECTED", @lf, tail::binary>>) do
+    parse_headers(tail, [], %Message{command: :connected})
   end
 
   defp parse_headers(tail, headers, message) do
@@ -69,9 +80,19 @@ defmodule Elephant.Message do
   end
 
   defp parse_body(tail, message) do
-    body_size = byte_size(tail) - 1
-    <<body::binary-size(body_size), 0>> = tail
+    tail_size = byte_size(tail)
 
-    %{message | body: body}
+    # if tail size is < 3 there is no body
+    # TODO should still verify that the tail is valid
+    if tail_size < 3 do
+      message
+    else
+      body_size = tail_size - 1
+      <<body::binary-size(body_size), 0, _rest::binary>> = tail
+
+      # todo verify that _rest is empty or newline
+
+      %{message | body: body}
+    end
   end
 end

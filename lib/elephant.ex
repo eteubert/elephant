@@ -5,7 +5,7 @@ defmodule Elephant do
   Example:
 
     {:ok, conn} = Elephant.connect({127,0,0,1}, 32770, "admin", "admin")
-    Elephant.subscribe(conn, "/test/me")
+    Elephant.subscribe(conn, "foo.bar")
   """
 
   require Logger
@@ -14,12 +14,6 @@ defmodule Elephant do
 
   @doc """
   Connect to server, returns socket.
-
-  ## Examples
-
-      iex> Elephant.hello
-      :world
-
   """
   def connect(host, port, login, password) do
     message =

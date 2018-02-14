@@ -7,18 +7,18 @@ defmodule Elephant do
       {:ok, conn} = Elephant.connect({127,0,0,1}, 32776, "admin", "admin")
 
       callback = fn
-        %Message{command: :message, headers: headers, body: body} ->
-          Logger.info(["Received MESSAGE", "\nheaders: ", inspect(headers), "\nbody: ", inspect(body)])
+        %Elephant.Message{command: :message, headers: headers, body: body} ->
+          Logger.info(["Received MESSAGE", "\\nheaders: ", inspect(headers), "\\nbody: ", inspect(body)])
 
-        %Message{command: :error, headers: headers, body: body} ->
-          Logger.error(["Received ERROR", "\nheaders: ", inspect(headers), "\nbody: ", inspect(body)])
+        %Elephant.Message{command: :error, headers: headers, body: body} ->
+          Logger.error(["Received ERROR", "\\nheaders: ", inspect(headers), "\\nbody: ", inspect(body)])
 
-        %Message{command: cmd, headers: headers, body: body} ->
+        %Elephant.Message{command: cmd, headers: headers, body: body} ->
           Logger.error([
             "Received unknown command: ", cmd, 
-            "\nheaders: ",
+            "\\nheaders: ",
             inspect(headers),
-            "\nbody: ",
+            "\\nbody: ",
             inspect(body)
           ])
       end

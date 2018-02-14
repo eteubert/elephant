@@ -91,15 +91,56 @@ defmodule Elephant.Message do
   end
 
   defp parse_body(tail, message) do
-    body =
-      tail
-      |> :binary.bin_to_list()
-      |> Enum.take_while(&(&1 > 0))
-      |> to_string
+    {body, more} = read_until_zero(tail)
 
-    case String.length(body) do
-      0 -> message
-      _ -> %{message | body: body}
-    end
+    more = more |> skip_newlines
+
+    message =
+      case String.length(body) do
+        0 -> message
+        _ -> %{message | body: body}
+      end
+
+    {:ok, message, more}
   end
+
+  @doc ~S"""
+  Splits a string into two at the first zero-byte.
+
+  ## Examples
+
+      iex> Elephant.Message.read_until_zero(<<65, 66, 0, 67, 68>>)
+      {"AB", "CD"}
+
+      iex> Elephant.Message.read_until_zero(<<65, 66, 0>>)
+      {"AB", ""}
+
+      iex> Elephant.Message.read_until_zero(<<0, 67, 68>>)
+      {"", "CD"}
+
+      iex> Elephant.Message.read_until_zero(<<65, 66>>)
+      {"AB", ""}
+  """
+  def read_until_zero(string), do: _read_until_zero([], :binary.bin_to_list(string))
+  defp _read_until_zero(body, [0 | more]), do: {to_string(Enum.reverse(body)), to_string(more)}
+  defp _read_until_zero(body, []), do: {to_string(Enum.reverse(body)), ""}
+  defp _read_until_zero(body, [codepoint | more]), do: _read_until_zero([codepoint | body], more)
+
+  @doc ~S"""
+  Removes CR / CRLF at the beginning of the string.
+
+  ## Examples
+
+      iex> Elephant.Message.skip_newlines("\n\n\nHello")
+      "Hello"
+
+      iex> Elephant.Message.skip_newlines("Hello")
+      "Hello"
+
+      iex> Elephant.Message.skip_newlines("\r\n\r\nHello")
+      "Hello"
+  """
+  def skip_newlines(<<@lf, tail::binary>>), do: skip_newlines(tail)
+  def skip_newlines(<<@cr, @lf, tail::binary>>), do: skip_newlines(tail)
+  def skip_newlines(string), do: string
 end

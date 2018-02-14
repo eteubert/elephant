@@ -24,6 +24,7 @@ defmodule Elephant.Receiver do
 
   # Server
 
+  # TODO: make id dynamic
   def handle_call({:subscribe, destination}, _from, state = %{conn: conn}) do
     message =
       %Message{
@@ -50,17 +51,24 @@ defmodule Elephant.Receiver do
     {:ok, response} = :gen_tcp.recv(conn, 0)
     Logger.debug(response)
 
-    response_message =
-      response
-      |> :erlang.iolist_to_binary()
-      |> Message.parse()
-
-    callback.(response_message)
-
-    Logger.debug(inspect(response_message))
-
-    GenServer.cast(self(), :listen)
+    response
+    |> :erlang.iolist_to_binary()
+    |> handle_response(callback)
 
     {:noreply, state}
+  end
+
+  def handle_response(response, callback) do
+    case Message.parse(response) do
+      {:ok, message, ""} ->
+        Logger.debug(inspect(message))
+        callback.(message)
+        GenServer.cast(self(), :listen)
+
+      {:ok, message, more} ->
+        Logger.debug(inspect(message))
+        callback.(message)
+        handle_response(more, callback)
+    end
   end
 end

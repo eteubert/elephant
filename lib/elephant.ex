@@ -55,7 +55,7 @@ defmodule Elephant do
 
     Logger.debug(response)
 
-    response_message =
+    {:ok, response_message, _} =
       response
       |> :erlang.iolist_to_binary()
       |> Message.parse()

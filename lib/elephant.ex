@@ -4,7 +4,7 @@ defmodule Elephant do
 
   Example:
 
-      {:ok, conn} = Elephant.connect({127,0,0,1}, 32776, "admin", "admin")
+      {:ok, conn} = Elephant.connect({127,0,0,1}, 61613, "admin", "admin")
 
       callback = fn
         %Elephant.Message{command: :message, headers: headers, body: body} ->

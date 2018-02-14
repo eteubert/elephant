@@ -28,4 +28,5 @@ IEx.configure(
     |> IO.chardata_to_string()
 )
 
+require Logger
 alias Elephant.{Message, Receiver}

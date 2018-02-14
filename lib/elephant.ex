@@ -4,8 +4,26 @@ defmodule Elephant do
 
   Example:
 
-      {:ok, conn} = Elephant.connect({127,0,0,1}, 32770, "admin", "admin")
-      Elephant.subscribe(conn, "foo.bar")
+      {:ok, conn} = Elephant.connect({127,0,0,1}, 32776, "admin", "admin")
+
+      callback = fn
+        %Message{command: :message, headers: headers, body: body} ->
+          Logger.info(["Received MESSAGE", "\nheaders: ", inspect(headers), "\nbody: ", inspect(body)])
+
+        %Message{command: :error, headers: headers, body: body} ->
+          Logger.error(["Received ERROR", "\nheaders: ", inspect(headers), "\nbody: ", inspect(body)])
+
+        %Message{command: cmd, headers: headers, body: body} ->
+          Logger.error([
+            "Received unknown command: ", cmd, 
+            "\nheaders: ",
+            inspect(headers),
+            "\nbody: ",
+            inspect(body)
+          ])
+      end
+
+      Elephant.subscribe(conn, "foo.bar", callback)
   """
 
   require Logger
@@ -51,8 +69,8 @@ defmodule Elephant do
   @doc """
   Subscribe to a topic or queue.
   """
-  def subscribe(conn, destination) do
-    {:ok, pid} = Receiver.start_link(conn)
+  def subscribe(conn, destination, callback) do
+    {:ok, pid} = Receiver.start_link(%{conn: conn, callback: callback})
     Receiver.subscribe(pid, destination)
     Receiver.listen(pid)
   end

@@ -10,8 +10,8 @@ defmodule Elephant.Receiver do
     {:ok, args}
   end
 
-  def start_link(conn) do
-    GenServer.start_link(__MODULE__, conn)
+  def start_link(state) do
+    GenServer.start_link(__MODULE__, state)
   end
 
   def subscribe(pid, destination) do
@@ -24,7 +24,7 @@ defmodule Elephant.Receiver do
 
   # Server
 
-  def handle_call({:subscribe, destination}, _from, conn) do
+  def handle_call({:subscribe, destination}, _from, state = %{conn: conn}) do
     message =
       %Message{
         command: :subscribe,
@@ -40,14 +40,12 @@ defmodule Elephant.Receiver do
 
     :gen_tcp.send(conn, message)
 
-    {:reply, :subscribed, conn}
+    {:reply, :subscribed, state}
   end
 
-  def handle_cast(:listen, conn) do
+  def handle_cast(:listen, state = %{conn: conn, callback: callback}) do
     # TODO: unsubscribe
     # TODO: register message handler
-
-    Logger.debug("handle_info :listen")
 
     {:ok, response} = :gen_tcp.recv(conn, 0)
     Logger.debug(response)
@@ -57,10 +55,12 @@ defmodule Elephant.Receiver do
       |> :erlang.iolist_to_binary()
       |> Message.parse()
 
+    callback.(response_message)
+
     Logger.debug(inspect(response_message))
 
     GenServer.cast(self(), :listen)
 
-    {:noreply, conn}
+    {:noreply, state}
   end
 end

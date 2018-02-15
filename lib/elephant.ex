@@ -105,9 +105,22 @@ defmodule Elephant do
 
   @doc """
   Subscribe to a topic or queue.
+
+  Steps to fix multiple subscriptions:
+  - start Receiver only _once_ globally
+  - listen only _once_ globally
+  - attach callbacks to subscriptions/destinations, not the Receiver
+  - check rest of code: except connect, it's send-and-forget, 
+    don't wait for server response because we already have a listener running
   """
   def subscribe(conn, destination, callback) do
-    {:ok, pid} = Receiver.start_link(%{conn: conn, callback: callback})
+    {:ok, pid} =
+      Receiver.start_link(%{
+        conn: conn,
+        callback: callback,
+        subscriptions: %{}
+      })
+
     Receiver.subscribe(pid, destination)
     Receiver.listen(pid)
   end

@@ -24,20 +24,35 @@ defmodule Elephant.Receiver do
 
   # Server
 
-  # TODO: make id dynamic
-  def handle_call({:subscribe, destination}, _from, state = %{conn: conn}) do
+  def handle_call({:subscribe, destination}, _from, state = %{subscriptions: subscriptions}) do
+    if Map.has_key?(subscriptions, destination) do
+      {:reply, {:error, "You have already subscribed to this destination"}, state}
+    else
+      do_subscribe(destination, state)
+    end
+  end
+
+  defp do_subscribe(destination, state = %{conn: conn, subscriptions: subscriptions}) do
+    id = next_id(subscriptions)
+
     message = %Message{
       command: :subscribe,
       headers: [
         {"destination", destination},
         {"ack", "auto"},
-        {"id", "42"}
+        {"id", id}
       ]
     }
 
     Socket.send(conn, message)
 
-    {:reply, :subscribed, state}
+    {:reply, :subscribed, %{state | subscriptions: Map.put(subscriptions, destination, id)}}
+  end
+
+  def next_id(subscriptions) do
+    (subscriptions
+     |> Map.values()
+     |> Enum.max(fn -> 0 end)) + 1
   end
 
   def handle_cast(:listen, state = %{conn: conn, callback: callback}) do

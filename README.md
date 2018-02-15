@@ -2,6 +2,10 @@
 
 An Elixir STOMP client.
 
+## Status
+
+Not recommended for production use yet.
+
 ## Installation
 
 First, add Elephant to your `mix.exs` dependencies:

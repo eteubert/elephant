@@ -52,10 +52,7 @@ defmodule Elephant do
 
     Logger.debug(response)
 
-    {:ok, response_message, _} =
-      response
-      |> :erlang.iolist_to_binary()
-      |> Message.parse()
+    {:ok, response_message, _} = Message.parse(response)
 
     case response_message.command do
       :connected -> {:ok, conn}
@@ -86,10 +83,7 @@ defmodule Elephant do
       {:ok, response} ->
         Logger.debug(response)
 
-        {:ok, response_message, _} =
-          response
-          |> :erlang.iolist_to_binary()
-          |> Message.parse()
+        {:ok, response_message, _} = Message.parse(response)
 
         if response_message.command == :receipt &&
              Message.has_header(response_message, {"receipt-id", receipt_id}) do

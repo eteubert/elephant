@@ -48,6 +48,12 @@ defmodule Elephant.Message do
     |> Enum.join(@eol)
   end
 
+  def parse(message) when is_list(message) do
+    message
+    |> :erlang.iolist_to_binary()
+    |> parse()
+  end
+
   def parse(<<"CONNECT", @eol, tail::binary>>) do
     parse_headers(tail, [], %Message{command: :connect})
   end

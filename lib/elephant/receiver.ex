@@ -51,9 +51,7 @@ defmodule Elephant.Receiver do
     {:ok, response} = :gen_tcp.recv(conn, 0)
     Logger.debug(response)
 
-    response
-    |> :erlang.iolist_to_binary()
-    |> handle_response(callback)
+    handle_response(response, callback)
 
     {:noreply, state}
   end

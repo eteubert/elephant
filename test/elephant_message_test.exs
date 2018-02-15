@@ -134,4 +134,23 @@ defmodule ElephantMessageTest do
     assert return1 == msg1
     assert return2 == msg2
   end
+
+  test "has_header" do
+    msg = %Message{
+      command: :message,
+      headers: [{"key", "value"}]
+    }
+
+    assert Message.has_header(msg, {"key", "value"})
+    assert !Message.has_header(msg, {"key", "wrong"})
+  end
+
+  test "has_header with integer value" do
+    msg = %Message{
+      command: :message,
+      headers: [{"key", "23"}]
+    }
+
+    assert Message.has_header(msg, {"key", 23})
+  end
 end

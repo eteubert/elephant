@@ -25,6 +25,12 @@ defmodule Elephant.Message do
   def format(%Message{command: :connected, headers: headers, body: nil}),
     do: format("CONNECTED", headers)
 
+  def format(%Message{command: :disconnect, headers: headers, body: nil}),
+    do: format("DISCONNECT", headers)
+
+  def format(%Message{command: :receipt, headers: headers, body: nil}),
+    do: format("RECEIPT", headers)
+
   def format(%Message{command: :subscribe, headers: headers, body: nil}),
     do: format("SUBSCRIBE", headers)
 
@@ -58,6 +64,22 @@ defmodule Elephant.Message do
     parse_headers(tail, [], %Message{command: :connected})
   end
 
+  def parse(<<"DISCONNECT", @eol, tail::binary>>) do
+    parse_headers(tail, [], %Message{command: :disconnect})
+  end
+
+  def parse(<<"DISCONNECT", @lf, tail::binary>>) do
+    parse_headers(tail, [], %Message{command: :disconnect})
+  end
+
+  def parse(<<"RECEIPT", @eol, tail::binary>>) do
+    parse_headers(tail, [], %Message{command: :receipt})
+  end
+
+  def parse(<<"RECEIPT", @lf, tail::binary>>) do
+    parse_headers(tail, [], %Message{command: :receipt})
+  end
+
   def parse(<<"MESSAGE", @eol, tail::binary>>) do
     parse_headers(tail, [], %Message{command: :message})
   end
@@ -79,6 +101,14 @@ defmodule Elephant.Message do
       true ->
         raise "Parse error. Expected header or newline, got: #{line}"
     end
+  end
+
+  def has_header(headers, {k, v}) when is_integer(v) do
+    has_header(headers, {k, to_string(v)})
+  end
+
+  def has_header(%Message{headers: headers}, {k, v}) do
+    Enum.any?(headers, fn header -> header == {k, v} end)
   end
 
   def normalize_headers(headers) do

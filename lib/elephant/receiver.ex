@@ -2,7 +2,7 @@ defmodule Elephant.Receiver do
   use GenServer
 
   require Logger
-  alias Elephant.Message
+  alias Elephant.{Message, Socket}
 
   # Client
 
@@ -26,27 +26,22 @@ defmodule Elephant.Receiver do
 
   # TODO: make id dynamic
   def handle_call({:subscribe, destination}, _from, state = %{conn: conn}) do
-    message =
-      %Message{
-        command: :subscribe,
-        headers: [
-          {"destination", destination},
-          {"ack", "auto"},
-          {"id", "42"}
-        ]
-      }
-      |> Message.format()
+    message = %Message{
+      command: :subscribe,
+      headers: [
+        {"destination", destination},
+        {"ack", "auto"},
+        {"id", "42"}
+      ]
+    }
 
-    Logger.debug(message)
-
-    :gen_tcp.send(conn, message)
+    Socket.send(conn, message)
 
     {:reply, :subscribed, state}
   end
 
   def handle_cast(:listen, state = %{conn: conn, callback: callback}) do
     # TODO: unsubscribe
-    # TODO: register message handler
 
     case :gen_tcp.recv(conn, 0) do
       {:ok, response} ->

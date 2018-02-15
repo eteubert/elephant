@@ -34,8 +34,7 @@ defmodule Elephant do
   """
 
   require Logger
-  alias Elephant.Message
-  alias Elephant.Receiver
+  alias Elephant.{Message, Receiver, Socket}
 
   @doc """
   Connect to server.
@@ -43,23 +42,13 @@ defmodule Elephant do
   Returns `{:ok, conn}` or `{:error, message}`.
   """
   def connect(host, port, login, password) do
-    {:ok, conn} = :gen_tcp.connect(host, port, [{:active, false}])
-    :inet.setopts(conn, [{:recbuf, 1024}])
-
-    message =
-      connect_message(login, password)
-      |> Message.format()
-
-    Logger.debug(message)
-
-    :gen_tcp.send(conn, message)
-    {:ok, response} = :gen_tcp.recv(conn, 0)
-
-    Logger.debug(response)
+    {:ok, conn} = Socket.connect(host, port)
+    Socket.send(conn, connect_message(login, password))
+    {:ok, response} = Socket.receive(conn)
 
     case Message.parse(response) do
       {:ok, %Message{command: :connected}, _} -> {:ok, conn}
-      _ -> {:error, response_message}
+      _ -> {:error, response}
     end
   end
 
@@ -70,21 +59,14 @@ defmodule Elephant do
   """
   def disconnect(conn) do
     receipt_id = Enum.random(1000..1_000_000)
+    Socket.send(conn, disconnect_message(receipt_id))
 
-    message =
-      disconnect_message(receipt_id)
-      |> Message.format()
-
-    Logger.debug(message)
-
-    :gen_tcp.send(conn, message)
-
-    case :gen_tcp.recv(conn, 0) do
+    case Socket.receive(conn) do
       {:error, :closed} ->
         {:ok, :disconnected}
 
-      {:error, :ealready} ->
-        {:ok, :disconnected}
+      {:error, reason} ->
+        {:error, reason}
 
       {:ok, response} ->
         Logger.debug(response)

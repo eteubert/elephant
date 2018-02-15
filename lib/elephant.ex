@@ -2,9 +2,18 @@ defmodule Elephant do
   @moduledoc ~S"""
   Elephant: A STOMP client.
 
-  Example:
+  ## Example
 
       {:ok, conn} = Elephant.connect({127,0,0,1}, 61613, "admin", "admin")
+
+      callback = fn m -> IO.puts(inspect(m)) end
+
+      Elephant.subscribe(conn, "foo.bar", callback)
+
+      # when you are finished, disconnect
+      Elephant.disconnect(conn)
+
+  For more control, use pattern matching in the callback:
 
       callback = fn
         %Elephant.Message{command: :message, headers: headers, body: body} ->
@@ -22,11 +31,6 @@ defmodule Elephant do
             inspect(body)
           ])
       end
-
-      Elephant.subscribe(conn, "foo.bar", callback)
-
-      # when you are finished, disconnect
-      Elephant.disconnect(conn)
   """
 
   require Logger
@@ -39,23 +43,22 @@ defmodule Elephant do
   Returns `{:ok, conn}` or `{:error, message}`.
   """
   def connect(host, port, login, password) do
+    {:ok, conn} = :gen_tcp.connect(host, port, [{:active, false}])
+    :inet.setopts(conn, [{:recbuf, 1024}])
+
     message =
       connect_message(login, password)
       |> Message.format()
 
     Logger.debug(message)
 
-    {:ok, conn} = :gen_tcp.connect(host, port, [{:active, false}])
-    :inet.setopts(conn, [{:recbuf, 1024}])
     :gen_tcp.send(conn, message)
     {:ok, response} = :gen_tcp.recv(conn, 0)
 
     Logger.debug(response)
 
-    {:ok, response_message, _} = Message.parse(response)
-
-    case response_message.command do
-      :connected -> {:ok, conn}
+    case Message.parse(response) do
+      {:ok, %Message{command: :connected}, _} -> {:ok, conn}
       _ -> {:error, response_message}
     end
   end
@@ -78,6 +81,9 @@ defmodule Elephant do
 
     case :gen_tcp.recv(conn, 0) do
       {:error, :closed} ->
+        {:ok, :disconnected}
+
+      {:error, :ealready} ->
         {:ok, :disconnected}
 
       {:ok, response} ->

@@ -48,10 +48,14 @@ defmodule Elephant.Receiver do
     # TODO: unsubscribe
     # TODO: register message handler
 
-    {:ok, response} = :gen_tcp.recv(conn, 0)
-    Logger.debug(response)
+    case :gen_tcp.recv(conn, 0) do
+      {:ok, response} ->
+        Logger.debug(response)
+        handle_response(response, callback)
 
-    handle_response(response, callback)
+      {:error, :closed} ->
+        Logger.debug("Stopped listening because socket was closed.")
+    end
 
     {:noreply, state}
   end

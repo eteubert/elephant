@@ -2,6 +2,8 @@ defmodule Elephant do
   @moduledoc ~S"""
   Elephant: A STOMP client.
 
+  Use `Elephant` as the primary API and `Elephant.Message` for working with received messages.
+
   ## Example
 
       {:ok, pid} = Elephant.start_link
@@ -10,9 +12,6 @@ defmodule Elephant do
       callback = fn m -> IO.puts(inspect(m)) end
 
       Elephant.subscribe(pid, "foo.bar", callback)
-      Elephant.subscribe(pid, "foo2.bar", callback)
-
-      Elephant.unsubscribe(pid, "foo2.bar")
 
       Elephant.disconnect(pid)
 
@@ -58,30 +57,52 @@ defmodule Elephant do
   @doc """
   Connect to server.
 
-  Returns `{:ok, conn}` or `{:error, message}`.
+  `host` must be `inet:socket_address() | inet:hostname()`, for example `{127,0,0,1}`.
   """
   def connect(pid, host, port, login, password) do
     GenServer.call(pid, {:connect, host, port, login, password})
   end
 
+  @doc """
+  Subscribe to a queue and register a callback for received messages.
+  """
   def subscribe(pid, destination, callback) do
     GenServer.call(pid, {:subscribe, destination, callback})
   end
 
+  @doc """
+  Unsubscribe from a queue.
+  """
   def unsubscribe(pid, destination) do
     GenServer.call(pid, {:unsubscribe, destination})
   end
 
+  @doc """
+  Receive messages from the TCP socket.
+
+  Is called automatically when necessary. Should not be called manually.
+  """
   def receive(pid, message) do
     GenServer.call(pid, {:receive, message})
   end
 
+  @doc """
+  Disconnect from server.
+  """
   def disconnect(pid) do
     GenServer.call(pid, :disconnect)
   end
 
-  def handle_call({:receive, message}, _from, state) do
-    Logger.warn(inspect(message))
+  def handle_call(
+        {:receive, message = %Message{command: :message}},
+        _from,
+        state = %{subscriber: subscriber}
+      ) do
+    {:ok, "/queue/" <> destination} = Message.get_header(message, "destination")
+
+    %{callback: callback} = Subscriber.get_subscription(subscriber, destination)
+
+    callback.(message)
 
     {:reply, :ok, state}
   end
@@ -203,18 +224,4 @@ defmodule Elephant do
       ]
     }
   end
-
-  @doc """
-  Subscribe to a topic or queue.
-
-  Steps to fix multiple subscriptions:
-  - start Receiver only _once_ globally
-  - listen only _once_ globally
-  - attach callbacks to subscriptions/destinations, not the Receiver
-  - check rest of code: except connect, it's send-and-forget, 
-    don't wait for server response because we already have a listener running
-  """
-  # def subscribe(receiver, destination, callback) do
-  #   Receiver.subscribe(receiver, destination, callback)
-  # end
 end

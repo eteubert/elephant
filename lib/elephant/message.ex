@@ -1,4 +1,18 @@
 defmodule Elephant.Message do
+  @moduledoc """
+  Representation of sent or received messages.
+
+  Each message has three components:
+
+  - command
+  - list of headers
+  - body
+
+  The _command_ is an atom and only commands specified in the STOMP specification 
+  are allowed. Each _header_ is a 2-tuple `{"header-key", "header-value"}`. The
+  _body_ is a binary.
+  """
+
   @enforce_keys [:command]
   defstruct command: nil, headers: [], body: nil
 
@@ -112,12 +126,29 @@ defmodule Elephant.Message do
     end
   end
 
+  @doc """
+  Checks if a header exists, by both key and value.
+  """
   def has_header(headers, {k, v}) when is_integer(v) do
     has_header(headers, {k, to_string(v)})
   end
 
   def has_header(%Message{headers: headers}, {k, v}) do
     Enum.any?(headers, fn header -> header == {k, v} end)
+  end
+
+  @doc """
+  Get header by key.
+
+  Returns `{:ok, value}` or `{:error, :notfound}` if the header does not exist.
+  """
+  def get_header(%Message{headers: headers}, key) do
+    headers
+    |> Enum.find(fn header -> elem(header, 0) == key end)
+    |> case do
+      {_, value} -> {:ok, value}
+      nil -> {:error, :notfound}
+    end
   end
 
   def normalize_headers(headers) do

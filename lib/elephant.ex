@@ -4,14 +4,17 @@ defmodule Elephant do
 
   ## Example
 
-      {:ok, conn} = Elephant.connect({127,0,0,1}, 61613, "admin", "admin")
+      {:ok, pid} = Elephant.start_link
+      Elephant.connect(pid, {127,0,0,1}, 61613, "admin", "admin")
 
       callback = fn m -> IO.puts(inspect(m)) end
 
-      Elephant.subscribe(conn, "foo.bar", callback)
+      Elephant.subscribe(pid, "foo.bar", callback)
+      Elephant.subscribe(pid, "foo2.bar", callback)
 
-      # when you are finished, disconnect
-      Elephant.disconnect(conn)
+      Elephant.unsubscribe(pid, "foo2.bar")
+
+      Elephant.disconnect(pid)
 
   For more control, use pattern matching in the callback:
 
@@ -33,22 +36,71 @@ defmodule Elephant do
       end
   """
 
+  use GenServer
+
   require Logger
-  alias Elephant.{Message, Receiver, Socket}
+  alias Elephant.{Message, Receiver, Socket, Subscriber}
+
+  def init(args) do
+    {
+      :ok,
+      args
+      |> Map.put_new(:socket, nil)
+      |> Map.put_new(:receiver, nil)
+      |> Map.put_new(:subscriber, nil)
+    }
+  end
+
+  def start_link(state \\ %{}) do
+    GenServer.start_link(__MODULE__, state)
+  end
 
   @doc """
   Connect to server.
 
   Returns `{:ok, conn}` or `{:error, message}`.
   """
-  def connect(host, port, login, password) do
-    {:ok, conn} = Socket.connect(host, port)
-    Socket.send(conn, connect_message(login, password))
-    {:ok, response} = Socket.receive(conn)
+  def connect(pid, host, port, login, password) do
+    GenServer.call(pid, {:connect, host, port, login, password})
+  end
+
+  def subscribe(pid, destination, callback) do
+    GenServer.call(pid, {:subscribe, destination, callback})
+  end
+
+  def unsubscribe(pid, destination) do
+    GenServer.call(pid, {:unsubscribe, destination})
+  end
+
+  def receive(pid, message) do
+    GenServer.call(pid, {:receive, message})
+  end
+
+  def disconnect(pid) do
+    GenServer.call(pid, :disconnect)
+  end
+
+  def handle_call({:receive, message}, _from, state) do
+    Logger.warn(inspect(message))
+
+    {:reply, :ok, state}
+  end
+
+  def handle_call({:connect, host, port, login, password}, _from, state) do
+    {:ok, socket} = Socket.connect(host, port)
+    Socket.send(socket, connect_message(login, password))
+    {:ok, response} = Socket.receive(socket)
+
+    {:ok, subscriber} = Subscriber.start_link()
+    {:ok, receiver} = Receiver.start_link(%{socket: socket, consumer: self()})
+    Receiver.listen(receiver)
 
     case Message.parse(response) do
-      {:ok, %Message{command: :connected}, _} -> {:ok, conn}
-      _ -> {:error, response}
+      {:ok, %Message{command: :connected}, _} ->
+        {:reply, socket, %{state | socket: socket, subscriber: subscriber, receiver: receiver}}
+
+      _ ->
+        {:reply, {:error, response}}
     end
   end
 
@@ -57,16 +109,23 @@ defmodule Elephant do
 
   Returns `{:ok, :disconnected}` or `{:error, :disconnect_failed, message}`.
   """
-  def disconnect(conn) do
+  def handle_call(:disconnect, _from, %{
+        socket: socket,
+        subscriber: subscriber,
+        receiver: receiver
+      }) do
     receipt_id = Enum.random(1000..1_000_000)
-    Socket.send(conn, disconnect_message(receipt_id))
+    Socket.send(socket, disconnect_message(receipt_id))
 
-    case Socket.receive(conn) do
+    Receiver.stop(receiver)
+    Subscriber.stop(subscriber)
+
+    case Socket.receive(socket) do
       {:error, :closed} ->
-        {:ok, :disconnected}
+        {:reply, {:ok, :disconnected}, %{}}
 
       {:error, reason} ->
-        {:error, reason}
+        {:reply, {:error, reason}, %{}}
 
       {:ok, response} ->
         Logger.debug(response)
@@ -75,11 +134,33 @@ defmodule Elephant do
 
         if response_message.command == :receipt &&
              Message.has_header(response_message, {"receipt-id", receipt_id}) do
-          {:ok, :disconnected}
+          {:reply, {:ok, :disconnected}, %{}}
         else
-          {:error, :disconnect_failed, response_message}
+          {:reply, {:error, :disconnect_failed, response_message}, %{}}
         end
     end
+  end
+
+  def handle_call(
+        {:subscribe, destination, callback},
+        _from,
+        state = %{socket: socket, subscriber: subscriber}
+      ) do
+    {:ok, entry} = Subscriber.subscribe(subscriber, destination, callback)
+    message = subscribe_message(destination, entry.id)
+    Socket.send(socket, message)
+    {:reply, {:ok, entry}, state}
+  end
+
+  def handle_call(
+        {:unsubscribe, destination},
+        _from,
+        state = %{socket: socket, subscriber: subscriber}
+      ) do
+    {:ok, entry} = Subscriber.unsubscribe(subscriber, destination)
+    message = unsubscribe_message(entry.id)
+    Socket.send(socket, message)
+    {:reply, :ok, state}
   end
 
   defp connect_message(login, password) do
@@ -103,6 +184,26 @@ defmodule Elephant do
     }
   end
 
+  defp subscribe_message(destination, id) do
+    %Message{
+      command: :subscribe,
+      headers: [
+        {"destination", destination},
+        {"ack", "auto"},
+        {"id", id}
+      ]
+    }
+  end
+
+  defp unsubscribe_message(id) do
+    %Message{
+      command: :unsubscribe,
+      headers: [
+        {"id", id}
+      ]
+    }
+  end
+
   @doc """
   Subscribe to a topic or queue.
 
@@ -113,15 +214,7 @@ defmodule Elephant do
   - check rest of code: except connect, it's send-and-forget, 
     don't wait for server response because we already have a listener running
   """
-  def subscribe(conn, destination, callback) do
-    {:ok, pid} =
-      Receiver.start_link(%{
-        conn: conn,
-        callback: callback,
-        subscriptions: %{}
-      })
-
-    Receiver.subscribe(pid, destination)
-    Receiver.listen(pid)
-  end
+  # def subscribe(receiver, destination, callback) do
+  #   Receiver.subscribe(receiver, destination, callback)
+  # end
 end

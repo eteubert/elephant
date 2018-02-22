@@ -42,6 +42,10 @@ defmodule Elephant.Subscriber do
     GenServer.call(pid, {:get_subscription, destination})
   end
 
+  def stop(server) do
+    GenServer.stop(server)
+  end
+
   # Server
 
   def handle_call(
@@ -88,19 +92,21 @@ defmodule Elephant.Subscriber do
     if !Map.has_key?(subscriptions, destination) do
       {:reply, {:error, "You are not subscribed to this destination"}, state}
     else
-      {:reply, :unsubscribed, %{state | subscriptions: Map.delete(subscriptions, destination)}}
+      entry = Map.get(subscriptions, destination)
+      {:reply, {:ok, entry}, %{state | subscriptions: Map.delete(subscriptions, destination)}}
     end
   end
 
   defp do_subscribe(destination, callback, state = %{subscriptions: subscriptions}) do
     id = next_id(subscriptions)
+    entry = %{id: id, callback: callback}
 
     {
       :reply,
-      :subscribed,
+      {:ok, entry},
       %{
         state
-        | subscriptions: Map.put(subscriptions, destination, %{id: id, callback: callback})
+        | subscriptions: Map.put(subscriptions, destination, entry)
       }
     }
   end

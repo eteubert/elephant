@@ -34,6 +34,9 @@ defmodule Elephant.Message do
   def format(%Message{command: :subscribe, headers: headers, body: nil}),
     do: format("SUBSCRIBE", headers)
 
+  def format(%Message{command: :unsubscribe, headers: headers, body: nil}),
+    do: format("UNSUBSCRIBE", headers)
+
   defp format(command, headers) when is_binary(command) do
     command <> @eol <> format_headers(headers) <> @eol <> @eol <> @ascii_null
   end

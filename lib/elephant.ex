@@ -33,6 +33,12 @@ defmodule Elephant do
             inspect(body)
           ])
       end
+
+  ## Starting in a supervision tree
+
+      children = [
+        worker(Elephant, [%{}, [name: Elephant]])
+      ]
   """
 
   use GenServer
@@ -50,8 +56,8 @@ defmodule Elephant do
     }
   end
 
-  def start_link(state \\ %{}) do
-    GenServer.start_link(__MODULE__, state)
+  def start_link(state \\ %{}, opts \\ []) do
+    GenServer.start_link(__MODULE__, state, opts)
   end
 
   @doc """

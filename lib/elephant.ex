@@ -26,7 +26,7 @@ defmodule Elephant do
 
         %Elephant.Message{command: cmd, headers: headers, body: body} ->
           Logger.error([
-            "Received unknown command: ", cmd, 
+            "Received unknown command: ", cmd,
             "\nheaders: ",
             inspect(headers),
             "\nbody: ",
@@ -114,6 +114,7 @@ defmodule Elephant do
   end
 
   def handle_call({:connect, host, port, login, password}, _from, state) do
+    # todo: handle {:error, :econnrefused} response
     {:ok, socket} = Socket.connect(host, port)
     Socket.send(socket, connect_message(login, password))
     {:ok, response} = Socket.receive(socket)
@@ -122,12 +123,20 @@ defmodule Elephant do
     {:ok, receiver} = Receiver.start_link(%{socket: socket, consumer: self()})
     Receiver.listen(receiver)
 
-    case Message.parse(response) do
-      {:ok, %Message{command: :connected}, _} ->
+    {:ok, message, _} = Message.parse(response)
+
+    case message do
+      %Message{command: :connected} ->
         {:reply, socket, %{state | socket: socket, subscriber: subscriber, receiver: receiver}}
 
       _ ->
-        {:reply, {:error, response}}
+        Logger.warn(
+          "[Elephant] failed to connect to host: #{inspect(host)}, port: #{port}, login: #{login}, reason: #{
+            inspect(message)
+          }"
+        )
+
+        {:reply, {:error, message}, state}
     end
   end
 

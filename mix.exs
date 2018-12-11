@@ -37,7 +37,7 @@ defmodule Elephant.MixProject do
   defp deps do
     [
       {:ex_guard, "~> 1.1.1", only: :dev},
-      {:ex_doc, "~> 0.16", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.19", only: :dev, runtime: false}
     ]
   end
 end

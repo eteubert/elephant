@@ -8,7 +8,7 @@ defmodule Elephant.Message do
   - list of headers
   - body
 
-  The _command_ is an atom and only commands specified in the STOMP specification 
+  The _command_ is an atom and only commands specified in the STOMP specification
   are allowed. Each _header_ is a 2-tuple `{"header-key", "header-value"}`. The
   _body_ is a binary.
   """
@@ -109,6 +109,14 @@ defmodule Elephant.Message do
 
   def parse(<<"MESSAGE", @lf, tail::binary>>) do
     parse_headers(tail, [], %Message{command: :message})
+  end
+
+  def parse(<<"ERROR", @eol, tail::binary>>) do
+    parse_headers(tail, [], %Message{command: :error})
+  end
+
+  def parse(<<"ERROR", @lf, tail::binary>>) do
+    parse_headers(tail, [], %Message{command: :error})
   end
 
   defp parse_headers(tail, headers, message) do

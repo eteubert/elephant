@@ -111,6 +111,18 @@ defmodule ElephantMessageTest do
               }, ""}
   end
 
+  test "parses error message" do
+    message = "ERROR\r\ncontent-type:text/plain\r\n\r\nthis is the body" <> <<0>>
+
+    assert Message.parse(message) ==
+             {:ok,
+              %Message{
+                command: :error,
+                headers: [{"content-type", "text/plain"}],
+                body: "this is the body"
+              }, ""}
+  end
+
   test "parses multiple messages" do
     message =
       "MESSAGE\nkey:value\n\ntest" <>

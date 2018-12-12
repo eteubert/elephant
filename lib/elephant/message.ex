@@ -119,6 +119,10 @@ defmodule Elephant.Message do
     parse_headers(tail, [], %Message{command: :error})
   end
 
+  def parse(_) do
+    {:error, :invalid}
+  end
+
   defp parse_headers(tail, headers, message) do
     [line, tail] = Regex.split(~r/\r?\n/, tail, parts: 2)
 

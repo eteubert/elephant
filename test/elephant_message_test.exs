@@ -40,6 +40,20 @@ defmodule ElephantMessageTest do
               }, ""}
   end
 
+  test "parses messages with funny headers" do
+    message =
+      "CONNECT\r\nmessage-id:ID\c27f59e3a2e7d-41496-1511347079793-1\c89\c1\c1\c1\r\n\r\ntest" <>
+        <<0>>
+
+    assert Message.parse(message) ==
+             {:ok,
+              %Message{
+                command: :connect,
+                headers: [{"message-id", "ID\c27f59e3a2e7d-41496-1511347079793-1\c89\c1\c1\c1"}],
+                body: "test"
+              }, ""}
+  end
+
   test "parses headers with empty value" do
     message = "CONNECT\r\nkey1:value1\r\nkey2:\r\nkey3:value3\r\n\r\ntest" <> <<0>>
 
@@ -109,6 +123,12 @@ defmodule ElephantMessageTest do
                 command: :connect,
                 headers: []
               }, ""}
+  end
+
+  test "parses invalid message" do
+    message = "invalid"
+
+    assert Message.parse(message) == {:error, :invalid}
   end
 
   test "parses error message" do

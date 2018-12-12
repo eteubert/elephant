@@ -51,7 +51,7 @@ defmodule Elephant.Receiver do
         Elephant.receive(consumer, message)
         handle_response(consumer, more)
 
-      {:error, _} ->
+      _ ->
         Logger.warn(
           "[Elephant] Unable to parse response: #{
             inspect(response, limit: :infinity, printable_limit: :infinity, pretty: true)

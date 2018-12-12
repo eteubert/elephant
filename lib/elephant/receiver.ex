@@ -33,7 +33,7 @@ defmodule Elephant.Receiver do
         handle_response(consumer, response)
 
       {:error, :closed} ->
-        Logger.debug("Stopped listening because socket was closed.")
+        Logger.debug("[Elephant] Stopped listening because socket was closed.")
     end
 
     {:noreply, state}
@@ -50,6 +50,13 @@ defmodule Elephant.Receiver do
         Logger.debug(inspect(message))
         Elephant.receive(consumer, message)
         handle_response(consumer, more)
+
+      {:error, _} ->
+        Logger.warn(
+          "[Elephant] Unable to parse response: #{
+            inspect(response, limit: :infinity, printable_limit: :infinity, pretty: true)
+          }"
+        )
     end
   end
 end

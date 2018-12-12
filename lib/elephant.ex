@@ -206,7 +206,7 @@ defmodule Elephant do
         {"accept-version", "1.2"},
         {"host", "localhost"},
         {"login", login},
-        {"password", password}
+        {"passcode", password}
       ]
     }
   end

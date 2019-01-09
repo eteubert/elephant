@@ -163,12 +163,18 @@ defmodule Elephant.Message do
     end
   end
 
-  def normalize_headers(headers) do
+  @doc """
+  Turn list of raw header lines into key value pairs.
+
+    iex> Elephant.Message.normalize_headers([<<"message-id:ID", 92, 99, "b39dd">>])
+    [{"message-id", "ID:b39dd"}]
+  """
+  def normalize_headers(headers) when is_list(headers) do
     headers
     |> Enum.reverse()
     |> Enum.map(fn header ->
       [k, v] = Regex.split(~r{:}, header, parts: 2)
-      {k, v}
+      {k, apply_value_decoding(v)}
     end)
   end
 
@@ -179,8 +185,17 @@ defmodule Elephant.Message do
 
   ## Examples
 
+    iex> Elephant.Message.apply_value_decoding(<<"foo", 92, 92, "bar">>)
+    <<"foo", 92, "bar">>
+
     iex> Elephant.Message.apply_value_decoding(<<"foo", 92, 99, "bar">>)
     "foo:bar"
+
+    iex> Elephant.Message.apply_value_decoding(<<"foo", 92, 110, "bar">>)
+    <<"foo", 10, "bar">>
+
+    iex> Elephant.Message.apply_value_decoding(<<"foo", 92, 114, "bar">>)
+    <<"foo", 13, "bar">>
   """
   def apply_value_decoding(value) when is_binary(value) do
     apply_value_decoding(String.to_charlist(value), [])
@@ -190,8 +205,20 @@ defmodule Elephant.Message do
     apply_value_decoding(value, [])
   end
 
+  defp apply_value_decoding([92 | [92 | tail]], result) do
+    apply_value_decoding(tail, [92 | result])
+  end
+
   defp apply_value_decoding([92 | [99 | tail]], result) do
     apply_value_decoding(tail, [?: | result])
+  end
+
+  defp apply_value_decoding([92 | [110 | tail]], result) do
+    apply_value_decoding(tail, [@lf | result])
+  end
+
+  defp apply_value_decoding([92 | [114 | tail]], result) do
+    apply_value_decoding(tail, [@cr | result])
   end
 
   defp apply_value_decoding([other | tail], result) do

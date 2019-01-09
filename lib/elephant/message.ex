@@ -172,6 +172,36 @@ defmodule Elephant.Message do
     end)
   end
 
+  @doc """
+  Apply "Value Decoding" for header values.
+
+  See https://stomp.github.io/stomp-specification-1.2.html#Valuea_Encoding
+
+  ## Examples
+
+    iex> Elephant.Message.apply_value_decoding(<<"foo", 92, 99, "bar">>)
+    "foo:bar"
+  """
+  def apply_value_decoding(value) when is_binary(value) do
+    apply_value_decoding(String.to_charlist(value), [])
+  end
+
+  def apply_value_decoding(value) when is_list(value) do
+    apply_value_decoding(value, [])
+  end
+
+  defp apply_value_decoding([92 | [99 | tail]], result) do
+    apply_value_decoding(tail, [?: | result])
+  end
+
+  defp apply_value_decoding([other | tail], result) do
+    apply_value_decoding(tail, [other | result])
+  end
+
+  defp apply_value_decoding([], result) do
+    Enum.reverse(result) |> to_string
+  end
+
   defp parse_body(tail, message) do
     {body, more} = read_until_zero(tail)
 

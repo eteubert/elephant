@@ -230,17 +230,27 @@ defmodule Elephant.Message do
   end
 
   defp parse_body(tail, message) do
-    {body, more} = read_until_zero(tail)
+    case read_until_zero(tail) do
+      {:ok, body, more} ->
+        more = more |> skip_newlines
 
-    more = more |> skip_newlines
+        message =
+          case String.length(body) do
+            0 -> message
+            _ -> %{message | body: body}
+          end
 
-    message =
-      case String.length(body) do
-        0 -> message
-        _ -> %{message | body: body}
-      end
+        {:ok, message, more}
 
-    {:ok, message, more}
+      {:nozero, body} ->
+        message =
+          case String.length(body) do
+            0 -> message
+            _ -> %{message | body: body}
+          end
+
+        {:incomplete, message}
+    end
   end
 
   @doc ~S"""
@@ -249,20 +259,24 @@ defmodule Elephant.Message do
   ## Examples
 
       iex> Elephant.Message.read_until_zero(<<65, 66, 0, 67, 68>>)
-      {"AB", "CD"}
+      {:ok, "AB", "CD"}
 
       iex> Elephant.Message.read_until_zero(<<65, 66, 0>>)
-      {"AB", ""}
+      {:ok, "AB", ""}
 
       iex> Elephant.Message.read_until_zero(<<0, 67, 68>>)
-      {"", "CD"}
+      {:ok, "", "CD"}
 
       iex> Elephant.Message.read_until_zero(<<65, 66>>)
-      {"AB", ""}
+      {:nozero, "AB"}
   """
   def read_until_zero(string), do: _read_until_zero([], :binary.bin_to_list(string))
-  defp _read_until_zero(body, [0 | more]), do: {to_string(Enum.reverse(body)), to_string(more)}
-  defp _read_until_zero(body, []), do: {to_string(Enum.reverse(body)), ""}
+
+  defp _read_until_zero(body, [0 | more]),
+    do: {:ok, to_string(Enum.reverse(body)), to_string(more)}
+
+  defp _read_until_zero(body, []), do: {:nozero, to_string(Enum.reverse(body))}
+
   defp _read_until_zero(body, [codepoint | more]), do: _read_until_zero([codepoint | body], more)
 
   @doc ~S"""

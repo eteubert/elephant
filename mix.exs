@@ -5,7 +5,7 @@ defmodule Elephant.MixProject do
     [
       app: :elephant,
       description: "A STOMP client to listen to, for example, AMQ.",
-      version: "0.2.8",
+      version: "0.2.9",
       elixir: "~> 1.6",
       start_permanent: Mix.env() == :prod,
       deps: deps(),

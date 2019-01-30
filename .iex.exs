@@ -36,7 +36,7 @@ defmodule H do
     {:ok, pid} = Elephant.start_link()
     Elephant.connect(pid, {127, 0, 0, 1}, 32770, "admin", "admin")
 
-    callback = fn m -> IO.puts(inspect(m)) end
+    callback = fn m -> IO.inspect(m, label: "demo handler") end
 
     Elephant.subscribe(pid, "foo.bar", callback)
   end

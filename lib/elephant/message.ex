@@ -137,11 +137,18 @@ defmodule Elephant.Message do
   end
 
   defp parse_headers(tail, headers, message) do
-    [line, tail] = Regex.split(~r/\r?\n/, tail, parts: 2)
-    |> case do
-        [line, tail] -> [line, tail]
-        _ -> raise "Unexpected line in header \ntail: #{inspect(tail)} \nheaders: #{inspect(headers)} \nmessage: #{inspect(message)}"
-    end
+    # FIXME: I think whe issue is that the HEADERS are larger than a single TCP packet and that is not handled!
+    [line, tail] =
+      Regex.split(~r/\r?\n/, tail, parts: 2)
+      |> case do
+        [line, tail] ->
+          [line, tail]
+
+        _ ->
+          raise "Unexpected line in header \ntail: #{inspect(tail)} \nheaders: #{inspect(headers)} \nmessage: #{
+                  inspect(message)
+                }"
+      end
 
     cond do
       String.contains?(line, ":") ->

@@ -47,6 +47,16 @@ defmodule Elephant.Receiver do
   # todo: don't pass consumer around in function head, leave it in state
   # todo: handle empty "more" graciously
   @spec handle_response(map(), pid(), charlist()) :: {:noreply, map(), {:continue, :listen}}
+  def handle_response(state, consumer, response)
+
+  def handle_response(state, _consumer, "") do
+    {
+      :noreply,
+      state,
+      {:continue, :listen}
+    }
+  end
+
   def handle_response(state, consumer, response) do
     raw_message =
       case Map.get(state, :partial_message) do
@@ -76,7 +86,6 @@ defmodule Elephant.Receiver do
         Logger.debug(inspect(message))
         Elephant.receive(consumer, message)
 
-        IO.inspect(more, label: more)
         handle_response(state, consumer, more)
 
         {:noreply, %{state | partial_message: nil}, {:continue, :listen}}

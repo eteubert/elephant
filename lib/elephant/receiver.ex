@@ -75,11 +75,6 @@ defmodule Elephant.Receiver do
           {:continue, :listen}
         }
 
-      # 1> I don't know if I need to :listen again here or what this is about
-      # 2> I should just store incomplete messages in ETS or GenServer state
-      # 3> Then when a new msg comes in, see if an incomplete is there and concat before parsing
-      # 4> Then ensure this works recursively, if a message is split in 3+ parts
-
       {:ok, message, more} ->
         Logger.debug(inspect(message))
         Elephant.receive(state.consumer, message)

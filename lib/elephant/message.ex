@@ -11,6 +11,19 @@ defmodule Elephant.Message do
   The _command_ is an atom and only commands specified in the STOMP specification
   are allowed. Each _header_ is a 2-tuple `{"header-key", "header-value"}`. The
   _body_ is a binary.
+
+  All commands are:
+
+  - `:send`
+  - `:message`
+  - `:error`
+  - `:connect`
+  - `:connected`
+  - `:disconnect`
+  - `:receipt`
+  - `:subscribe`
+  - `:unsubscribe`
+
   """
 
   @enforce_keys [:command]

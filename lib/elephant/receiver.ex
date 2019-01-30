@@ -39,11 +39,6 @@ defmodule Elephant.Receiver do
     end
   end
 
-  def handle_continue(:listen, state) do
-    GenServer.cast(self(), :listen)
-    {:noreply, state}
-  end
-
   @spec handle_response(map(), charlist()) :: {:noreply, map(), {:continue, :listen}}
   def handle_response(state, response)
 
@@ -56,41 +51,56 @@ defmodule Elephant.Receiver do
   end
 
   def handle_response(state, response) do
-    raw_message =
-      case Map.get(state, :partial_message) do
-        nil ->
-          response
+    state
+    |> get_message(response)
+    |> Message.parse()
+    |> handle_message(state, response)
+  end
 
-        partial_message ->
-          partial_message ++ response
-      end
+  @spec handle_message({atom(), any()}, map(), charlist()) ::
+          {:noreply, map(), {:continue, :listen}}
+  defp handle_message({:incomplete, _message}, state, response) do
+    Logger.info("incomplete message, continue listening...")
 
-    case Message.parse(raw_message) do
-      {:incomplete, _message} ->
-        Logger.info("incomplete message, continue listening...")
+    {
+      :noreply,
+      %{state | partial_message: get_message(state, response)},
+      {:continue, :listen}
+    }
+  end
 
-        {
-          :noreply,
-          %{state | partial_message: raw_message},
-          {:continue, :listen}
-        }
+  defp handle_message({:ok, message, more}, state, _response) do
+    Logger.debug(inspect(message))
+    Elephant.receive(state.consumer, message)
 
-      {:ok, message, more} ->
-        Logger.debug(inspect(message))
-        Elephant.receive(state.consumer, message)
+    handle_response(state, more)
 
-        handle_response(state, more)
+    {:noreply, %{state | partial_message: nil}, {:continue, :listen}}
+  end
 
-        {:noreply, %{state | partial_message: nil}, {:continue, :listen}}
+  defp handle_message(_, state, response) do
+    Logger.warn(
+      "[Elephant] Unable to parse response: #{
+        inspect(response, limit: :infinity, printable_limit: :infinity, pretty: true)
+      }"
+    )
 
-      _ ->
-        Logger.warn(
-          "[Elephant] Unable to parse response: #{
-            inspect(response, limit: :infinity, printable_limit: :infinity, pretty: true)
-          }"
-        )
+    {:noreply, state, {:continue, :listen}}
+  end
 
-        {:noreply, state, {:continue, :listen}}
+  def handle_continue(:listen, state) do
+    GenServer.cast(self(), :listen)
+    {:noreply, state}
+  end
+
+  @spec get_message(map(), charlist()) :: charlist()
+  defp get_message(state, message) do
+    case Map.get(state, :partial_message) do
+      nil ->
+        message
+
+      partial_message ->
+        partial_message ++ message
     end
   end
 end

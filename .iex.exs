@@ -30,3 +30,14 @@ IEx.configure(
 
 require Logger
 alias Elephant.{Message, Receiver}
+
+defmodule H do
+  def demo do
+    {:ok, pid} = Elephant.start_link()
+    Elephant.connect(pid, {127, 0, 0, 1}, 32770, "admin", "admin")
+
+    callback = fn m -> IO.puts(inspect(m)) end
+
+    Elephant.subscribe(pid, "foo.bar", callback)
+  end
+end

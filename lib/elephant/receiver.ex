@@ -25,13 +25,13 @@ defmodule Elephant.Receiver do
 
   # Server
 
-  def handle_cast(:listen, state = %{socket: socket, consumer: consumer}) do
+  def handle_cast(:listen, state = %{socket: socket}) do
     case :gen_tcp.recv(socket, 0) do
       {:ok, response} ->
         # - todo fetch matching subscription based on header
         # - then extract callback from the entry
         Logger.debug(response)
-        handle_response(state, consumer, response)
+        handle_response(state, response)
 
       {:error, :closed} ->
         Logger.warn("[Elephant] Stopped listening because socket was closed.")
@@ -44,12 +44,10 @@ defmodule Elephant.Receiver do
     {:noreply, state}
   end
 
-  # todo: don't pass consumer around in function head, leave it in state
-  # todo: handle empty "more" graciously
-  @spec handle_response(map(), pid(), charlist()) :: {:noreply, map(), {:continue, :listen}}
-  def handle_response(state, consumer, response)
+  @spec handle_response(map(), charlist()) :: {:noreply, map(), {:continue, :listen}}
+  def handle_response(state, response)
 
-  def handle_response(state, _consumer, "") do
+  def handle_response(state, "") do
     {
       :noreply,
       state,
@@ -57,7 +55,7 @@ defmodule Elephant.Receiver do
     }
   end
 
-  def handle_response(state, consumer, response) do
+  def handle_response(state, response) do
     raw_message =
       case Map.get(state, :partial_message) do
         nil ->
@@ -84,9 +82,9 @@ defmodule Elephant.Receiver do
 
       {:ok, message, more} ->
         Logger.debug(inspect(message))
-        Elephant.receive(consumer, message)
+        Elephant.receive(state.consumer, message)
 
-        handle_response(state, consumer, more)
+        handle_response(state, more)
 
         {:noreply, %{state | partial_message: nil}, {:continue, :listen}}
 

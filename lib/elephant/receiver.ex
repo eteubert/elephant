@@ -2,7 +2,7 @@ defmodule Elephant.Receiver do
   use GenServer
 
   require Logger
-  alias Elephant.{Message}
+  alias Elephant.Message
 
   # Client
 
@@ -33,7 +33,7 @@ defmodule Elephant.Receiver do
         handle_response(consumer, response)
 
       {:error, :closed} ->
-        Logger.debug("[Elephant] Stopped listening because socket was closed.")
+        Logger.warn("[Elephant] Stopped listening because socket was closed.")
     end
 
     {:noreply, state}
@@ -41,10 +41,15 @@ defmodule Elephant.Receiver do
 
   def handle_response(consumer, response) do
     case Message.parse(response) do
-      {:ok, message, ""} ->
+      {:incomplete, message} ->
         Logger.debug(inspect(message))
         Elephant.receive(consumer, message)
         GenServer.cast(self(), :listen)
+
+      # 1> I don't know if I need to :listen again here or what this is about
+      # 2> I should just store incomplete messages in ETS or GenServer state
+      # 3> Then when a new msg comes in, see if an incomplete is there an concat before parsing
+      # 4> Then ensure this works recursively, if a message is split in 3+ parts
 
       {:ok, message, more} ->
         Logger.debug(inspect(message))

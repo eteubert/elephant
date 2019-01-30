@@ -166,8 +166,8 @@ defmodule Elephant.Message do
   @doc """
   Turn list of raw header lines into key value pairs.
 
-    iex> Elephant.Message.normalize_headers([<<"message-id:ID", 92, 99, "b39dd">>])
-    [{"message-id", "ID:b39dd"}]
+      iex> Elephant.Message.normalize_headers([<<"message-id:ID", 92, 99, "b39dd">>])
+      [{"message-id", "ID:b39dd"}]
   """
   def normalize_headers(headers) when is_list(headers) do
     headers
@@ -185,17 +185,17 @@ defmodule Elephant.Message do
 
   ## Examples
 
-    iex> Elephant.Message.apply_value_decoding(<<"foo", 92, 92, "bar">>)
-    <<"foo", 92, "bar">>
+      iex> Elephant.Message.apply_value_decoding(<<"foo", 92, 92, "bar">>)
+      <<"foo", 92, "bar">>
 
-    iex> Elephant.Message.apply_value_decoding(<<"foo", 92, 99, "bar">>)
-    "foo:bar"
+      iex> Elephant.Message.apply_value_decoding(<<"foo", 92, 99, "bar">>)
+      "foo:bar"
 
-    iex> Elephant.Message.apply_value_decoding(<<"foo", 92, 110, "bar">>)
-    <<"foo", 10, "bar">>
+      iex> Elephant.Message.apply_value_decoding(<<"foo", 92, 110, "bar">>)
+      <<"foo", 10, "bar">>
 
-    iex> Elephant.Message.apply_value_decoding(<<"foo", 92, 114, "bar">>)
-    <<"foo", 13, "bar">>
+      iex> Elephant.Message.apply_value_decoding(<<"foo", 92, 114, "bar">>)
+      <<"foo", 13, "bar">>
   """
   def apply_value_decoding(value) when is_binary(value) do
     apply_value_decoding(String.to_charlist(value), [])

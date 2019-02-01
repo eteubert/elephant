@@ -137,6 +137,16 @@ defmodule ElephantMessageTest do
               }}
   end
 
+  test "parses messages that break in headers as incomplete" do
+    message = "MESSAGE\r\nkey:value\r\nkey2:val"
+
+    assert Message.parse(message) ==
+             {:incomplete,
+              %Message{
+                command: :message
+              }}
+  end
+
   # think where I should handle multi part messages. here or maybe one abstaction layer higher.
   # don't pass incomplete messages to client but gather and concatenate until we have a complete
   # message.

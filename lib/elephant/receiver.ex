@@ -81,7 +81,11 @@ defmodule Elephant.Receiver do
   defp handle_message(_, state, response) do
     Logger.warn(
       "[Elephant] Unable to parse response: #{
-        inspect(response, limit: :infinity, printable_limit: :infinity, pretty: true)
+        inspect(IO.iodata_to_binary(response),
+          limit: :infinity,
+          printable_limit: :infinity,
+          pretty: true
+        )
       }"
     )
 

@@ -212,4 +212,28 @@ defmodule ElephantMessageTest do
 
     assert Message.has_header(msg, {"key", 23})
   end
+
+  test "handles_leading_newline" do
+    message = "MESSAGE\r\nkey:value\r\n\r\n\r\nfoo" <> <<0>>
+
+    assert Message.parse(message) ==
+             {:ok,
+              %Message{
+                command: :message,
+                headers: [{"key", "value"}],
+                body: "\r\nfoo"
+              }, ""}
+  end
+
+  test "parses embedded nulls" do
+    message = "MESSAGE\r\ncontent-length:10\r\n\r\n\0\0\0\0\0\0\0\0\0\0" <> <<0>>
+
+    assert Message.parse(message) ==
+             {:ok,
+              %Message{
+                command: :message,
+                headers: [{"content-length", "10"}],
+                body: "\0\0\0\0\0\0\0\0\0\0"
+              }, ""}
+  end
 end

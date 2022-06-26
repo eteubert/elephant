@@ -192,6 +192,13 @@ defmodule Elephant.Message do
     end
   end
 
+  defp get_content_length_header(message) do
+    case get_header(message, "content-length") do
+      {:error, :notfound} -> nil
+      {:ok, value} -> String.to_integer(value)
+    end
+  end
+
   @doc """
   Turn list of raw header lines into key value pairs.
 
@@ -259,9 +266,9 @@ defmodule Elephant.Message do
   end
 
   defp parse_body(tail, message) do
-    case read_until_zero(tail) do
+    case read_until_end(tail, get_content_length_header(message)) do
       {:ok, body, more} ->
-        more = more |> skip_newlines
+        more = more |> skip_newline
 
         message =
           case String.length(body) do
@@ -271,7 +278,7 @@ defmodule Elephant.Message do
 
         {:ok, message, more}
 
-      {:nozero, body} ->
+      {:incomplete, body} ->
         message =
           case String.length(body) do
             0 -> message
@@ -283,28 +290,51 @@ defmodule Elephant.Message do
   end
 
   @doc ~S"""
-  Splits a string into two at the first zero-byte.
+  Splits a string into two, either at the first null byte, or at content_length if non-nil.
+  Terminal null byte is still required and consumed when specifying content_length
 
   ## Examples
 
-      iex> Elephant.Message.read_until_zero(<<65, 66, 0, 67, 68>>)
+      iex> Elephant.Message.read_until_end(<<65, 66, 0, 67, 68>>, nil)
       {:ok, "AB", "CD"}
 
-      iex> Elephant.Message.read_until_zero(<<65, 66, 0>>)
+      iex> Elephant.Message.read_until_end(<<65, 66, 0>>, nil)
       {:ok, "AB", ""}
 
-      iex> Elephant.Message.read_until_zero(<<0, 67, 68>>)
+      iex> Elephant.Message.read_until_end(<<0, 67, 68>>, nil)
       {:ok, "", "CD"}
 
-      iex> Elephant.Message.read_until_zero(<<65, 66>>)
-      {:nozero, "AB"}
+      iex> Elephant.Message.read_until_end(<<65, 66>>, nil)
+      {:incomplete, "AB"}
+
   """
-  def read_until_zero(string), do: _read_until_zero([], :binary.bin_to_list(string))
+  def read_until_end(string, content_length) when is_nil(content_length),
+    do: _read_until_zero([], :binary.bin_to_list(string))
+
+  def read_until_end(string, content_length) do
+    _read_until_content_length([], :binary.bin_to_list(string), content_length)
+  end
+
+  # correct final position - terminal zero is present, accumulator is zero
+  defp _read_until_content_length(body, [0 | more], 0),
+    do: {:ok, to_string(Enum.reverse(body)), to_string(more)}
+
+  # incomplete - terminal zero isn't present, and our accumulator is zero
+  defp _read_until_content_length(body, [], 0),
+    do: {:incomplete, to_string(Enum.reverse(body))}
+
+  # incomplete - we have nothing left to read but a nonzero accumulator
+  defp _read_until_content_length(body, [], accumulator),
+    do: {:incomplete, to_string(Enum.reverse(body))}
+
+  # intermediate position - nonzero accumulator, nonzero length
+  defp _read_until_content_length(body, [codepoint | more], accumulator),
+    do: _read_until_content_length([codepoint | body], more, accumulator - 1)
 
   defp _read_until_zero(body, [0 | more]),
     do: {:ok, to_string(Enum.reverse(body)), to_string(more)}
 
-  defp _read_until_zero(body, []), do: {:nozero, to_string(Enum.reverse(body))}
+  defp _read_until_zero(body, []), do: {:incomplete, to_string(Enum.reverse(body))}
 
   defp _read_until_zero(body, [codepoint | more]), do: _read_until_zero([codepoint | body], more)
 
@@ -325,4 +355,22 @@ defmodule Elephant.Message do
   def skip_newlines(<<@lf, tail::binary>>), do: skip_newlines(tail)
   def skip_newlines(<<@cr, @lf, tail::binary>>), do: skip_newlines(tail)
   def skip_newlines(string), do: string
+
+  @doc ~S"""
+  Removes single CR / CRLF pair at the beginning of the string.
+
+  ## Examples
+
+      iex> Elephant.Message.skip_newline("\n\n\nHello")
+      "\n\nHello"
+
+      iex> Elephant.Message.skip_newline("Hello")
+      "Hello"
+
+      iex> Elephant.Message.skip_newline("\r\n\r\nHello")
+      "\r\nHello"
+  """
+  def skip_newline(<<@lf, tail::binary>>), do: tail
+  def skip_newline(<<@cr, @lf, tail::binary>>), do: tail
+  def skip_newline(string), do: string
 end
